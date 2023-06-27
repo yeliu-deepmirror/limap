@@ -1,0 +1,7 @@
+---
+##############################
+# global config
+data_dir: "outputs"
+max_image_dim: 800
+input_n_views: 100
+input_stride: 1
