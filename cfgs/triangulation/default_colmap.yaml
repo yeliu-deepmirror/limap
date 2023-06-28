@@ -44,15 +44,15 @@ line2d:
     compute_descinfo: False
     detector:
         method: "deeplsd" # ["lsd", "sold2", "hawpv3", "tp_lsd", "deeplsd"]
-        skip_exists: False
+        skip_exists: True
     extractor:
-        method: "wireframe" # ["sold2", "lbd", "l2d2", "linetr", "superpoint_endpoints", "wireframe"]
-        skip_exists: False
+        method: "superpoint_endpoints" # ["sold2", "lbd", "l2d2", "linetr", "superpoint_endpoints", "wireframe"]
+        skip_exists: True
     matcher:
-        method: "gluestick" # ["sold2", "lbd", "l2d2", "linetr", "nn_endpoints", "superglue_endpoints", "gluestick"]
+        method: "nn_endpoints" # ["sold2", "lbd", "l2d2", "linetr", "nn_endpoints", "superglue_endpoints", "gluestick"]
         n_jobs: 1
         topk: 10
-        skip_exists: False
+        skip_exists: True
         superglue:
             weights: "outdoor" # ["indoor", "outdoor"] for selecting superglue models
 var2d: # in pixels
