@@ -65,10 +65,6 @@ python visualize_3d_lines.py --input_dir outputs/${SESSION_NAME}/finaltracks
 python visualize_3d_lines.py --input_dir outputs/${SESSION_NAME}/finaltracks --imagecols outputs/${SESSION_NAME}/imagecols.npy
 ```
 
-```
-python runners/colmap/localization.py --lines_dir outputs/${SESSION_NAME}/finaltracks
-```
-
 ### Example of Line Mapping
 <details>
   <summary>Example of Hypersim.</summary>
@@ -105,6 +101,14 @@ Also, the combination  ``LSD detector + Endpoints NN matcher`` can be enabled wi
 </details>
 
 ### Example of Hybrid Point-Line Localization
+
+localization with colmap result
+```
+python runners/colmap/localization.py --lines_dir outputs/${SESSION_NAME}
+```
+```
+python runners/colmap/localization_rgbd.py
+```
 
 <details>
   <summary>Example of Localization.</summary>
