@@ -24,7 +24,7 @@ ransac_cfg = {}
 request_cnt = 0
 world_to_local_trans = np.array([0, 0, 0]).astype(np.float64)
 world_to_local_rot = np.eye(3).astype(np.float64)
-
+line_map = LineMap()
 
 # Called for every client connecting (after handshake)
 def new_client(client, server):
@@ -48,8 +48,8 @@ def message_received(client, server, message):
     # read the request from file and run pnp
     points_file_path = "/home/viki/Development/Alpha/Data/request/tmp.txt"
     image_path = "/home/viki/Development/Alpha/Data/request/tmp.jpg"
+    line_image_path = "/home/viki/Development/Alpha/Data/request/tmp_line_" + str(request_cnt) + ".jpg"
     output_file_path = "/home/viki/Development/Alpha/Data/request/result.txt"
-    image = cv2.imread(image_path)
 
     point_3ds = []
     point_2ds = []
@@ -68,20 +68,52 @@ def message_received(client, server, message):
         point_3ds.append([pt_local[0], pt_local[1], pt_local[2]])
         point_2ds.append([float(tmp[3]), float(tmp[4])])
 
+    # read camera
     line_intrin = points_file.readline()
     tmp = line_intrin.split(" ")
     K = np.array([[float(tmp[0]), 0, float(tmp[2])], [0, float(tmp[1]), float(tmp[3])], [0, 0, 1]]).astype(np.float32)
-    camera = _base.Camera("PINHOLE", K, cam_id=request_cnt, hw=[image.shape[0], image.shape[1]])
+    camera = _base.Camera("PINHOLE", K, cam_id=request_cnt, hw=[int(tmp[5]), int(tmp[4])])
+
+    # read reference image id
+    camera_name_ref = points_file.readline()[:-1]  # skip the last \n char
+    timestamp_ref = int(points_file.readline())
+    print("Reference :", camera_name_ref, timestamp_ref)
+
+    # read recover matrix of 2d pixels
+    recover_matrix = np.eye(3, dtype=np.float64)
+    for i in range(3):
+        rcm_tmp = points_file.readline()
+        tmp = rcm_tmp.split(" ")
+        recover_matrix[i][0] = float(tmp[0])
+        recover_matrix[i][1] = float(tmp[1])
+        recover_matrix[i][2] = float(tmp[2])
+    print("recover_matrix :", recover_matrix)
 
     # find line matches
-    # l3ds = data['l3ds']
-    # l2ds = data['l2ds']
-    # l3d_ids = data['l3d_ids']
+    line3ds = []
+    line2ds = []
+    line3d_ids = []
+    if line_map.loaded:
+        # process line match
+        image_query = cv2.imread(image_path)
+        line3ds, line3d_ids, line2ds_raw, image_show = line_map.match_image_with_query(image_query, camera_name_ref, timestamp_ref, True)
 
+        cv2.imwrite(line_image_path, image_show)
 
+        # use recover matrix to fix the line2ds
+        for line2d in line2ds_raw:
+            p1 = line2d.start
+            p2 = line2d.end
+            p1_corr = recover_matrix.dot(np.array([p1[0], p1[1], 1.0], dtype=np.float64))
+            p2_corr = recover_matrix.dot(np.array([p2[0], p2[1], 1.0], dtype=np.float64))
+            start = np.array([p1_corr[0], p1_corr[1]], dtype=np.float64)
+            end = np.array([p2_corr[0], p2_corr[1]], dtype=np.float64)
+            line2ds.append(_base.Line2d(start, end))
 
+    print(" # points :", len(point_3ds))
+    print(" # lines :", len(line2ds))
     final_pose, ransac_stats = _estimators.pl_estimate_absolute_pose(
-            ransac_cfg, [], [], [], point_3ds, point_2ds, camera, silent=True)
+            ransac_cfg, line3ds, line3d_ids, line2ds, point_3ds, point_2ds, camera, silent=True)
 
     log = "RANSAC stats: \n"
     log += f"  - num_iterations_total: {ransac_stats.num_iterations_total}\n"
@@ -106,7 +138,19 @@ def message_received(client, server, message):
         output_file.write(str(rot_mat[0][0]) + " " + str(rot_mat[0][1]) + " " + str(rot_mat[0][2]) + '\n')
         output_file.write(str(rot_mat[1][0]) + " " + str(rot_mat[1][1]) + " " + str(rot_mat[1][2]) + '\n')
         output_file.write(str(rot_mat[2][0]) + " " + str(rot_mat[2][1]) + " " + str(rot_mat[2][2]) + '\n')
-        output_file.write(str(tvec[0]) + " " + str(tvec[1]) + " " + str(tvec[2]))
+        output_file.write(str(tvec[0]) + " " + str(tvec[1]) + " " + str(tvec[2]) + '\n')
+
+        # write the line observations
+        output_file.write(str(len(line2ds)) + '\n')
+        for i in range(len(line2ds)):
+            p1 = line2ds[i].start
+            p2 = line2ds[i].end
+            output_file.write(str(p1[0]) + " " + str(p1[1]) + " " + str(p2[0]) + " " + str(p2[1]) + '\n')
+            p3 = line3ds[line3d_ids[i]].start
+            p4 = line3ds[line3d_ids[i]].end
+            output_file.write(str(p3[0]) + " " + str(p3[1]) + " " + str(p3[2]) + " ")
+            output_file.write(str(p4[0]) + " " + str(p4[1]) + " " + str(p4[2]) + '\n')
+
 
     return_message = "received your message : " + message
     server.send_message(client, return_message)
@@ -116,10 +160,11 @@ def message_received(client, server, message):
 def test_image_line_match(args):
     image_query = cv2.imread("./outputs/0.jpg")
     # image_query = cv2.rotate(image_query, cv2.ROTATE_90_CLOCKWISE)
-    line_map = LineMap(args.lines_dir)
-    matches, image_show = line_map.match_image_with_query(image_query, "camera_back", "1669268767414037205", True)
+    if not line_map.loaded:
+        line_map.load(args.lines_dir)
+    line3ds, line3d_ids, line2ds, image_show = line_map.match_image_with_query(image_query, "camera_back", "1669268767414037205", True)
 
-    print("find", len(matches), "matches.")
+    print("find", len(line2ds), "matches.")
     if image_show is not None:
         cv2.destroyAllWindows()
         cv2.imshow("lines in image", image_show)
@@ -135,10 +180,13 @@ def main():
     server.set_fn_message_received(message_received)
     server.run_forever()
 
+
 def parse_args():
     arg_parser = argparse.ArgumentParser(description='Line Localization Server')
     arg_parser.add_argument('--lines_dir', type=Path, help='Path to lines file')
-    arg_parser.add_argument('--ransac_threshold', type=float, default=12.0,
+    arg_parser.add_argument('--use_line', type=bool, default=True,
+                            help='Whether to add line measurements, default: %(default)s')
+    arg_parser.add_argument('--ransac_threshold', type=float, default=18.0,
                             help='Threshold for RANSAC/Solver first RANSAC, default: %(default)s')
     args, unknown = arg_parser.parse_known_args()
     return args
@@ -146,6 +194,10 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+
+    if args.use_line:
+        line_map.load(args.lines_dir)
+        # test_image_line_match(args)
 
     ransac_cfg['line_cost_func'] = "PerpendicularDist"
     ransac_cfg['epipolar_filter'] = False
@@ -161,6 +213,7 @@ if __name__ == '__main__':
     ransac_cfg['ransac']['weight_point'] = 1.0
     ransac_cfg['ransac']['weight_line'] = 1.0
 
+    print("ransac_cfg: ", ransac_cfg)
 
     # read the offset
     offset_file_path = os.path.join(args.lines_dir, "colmap_outputs", "world_to_local.proto.txt")

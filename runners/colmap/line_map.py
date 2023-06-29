@@ -19,7 +19,10 @@ class LineObservation:
 
 
 class LineMap:
-    def __init__(self, lines_dir):
+    def __init__(self):
+        self.loaded = False
+
+    def load(self, lines_dir):
         self.TAG = "[LineMap]"
         self.weight_path = "/home/viki/.limap/models"
         print(self.TAG, "load lines from :", lines_dir)
@@ -53,8 +56,9 @@ class LineMap:
         print(self.TAG, "map load done.")
 
         # create extractor and matchor
+        # deeplsd will have strange lines, LSD result is more stable
         detector_cfg = {}
-        detector_cfg['method'] = "deeplsd"
+        detector_cfg['method'] = "lsd"
         self.detector = limap.line2d.get_detector(detector_cfg, max_num_2d_segs=3000, do_merge_lines=False, visualize=False, weight_path=self.weight_path)
         extractor_cfg = {}
         extractor_cfg['method'] = "wireframe"
@@ -65,9 +69,13 @@ class LineMap:
         matcher_cfg['topk'] = 0  # process one-to-one match at localization stage
         self.matcher = limap.line2d.get_matcher(matcher_cfg, self.extractor, n_neighbors=20, weight_path=self.weight_path)
         print(self.TAG, "models load done.")
+        self.loaded = True
 
 
     def get_map_image(self, camera_name, timestamp):
+        if not self.loaded:
+            print(self.TAG, "map not loaded.")
+            return None, -1
         image_name = os.path.join(self.image_folder, camera_name, str(timestamp) + ".jpg")
         image = cv2.imread(image_name)
         if image_name not in self.images_name_to_id:
@@ -102,10 +110,36 @@ class LineMap:
 
         # match the lines & draw
         matches = self.matcher.match_pair(descinfo_ref, descinfo_query)
+
+        # get line3ds and line 2ds
+        line3ds = []
+        line3d_ids = []
+        line2ds = []
+        # add all the line3d seen by reference image
+        for line in image_lines_ref:
+            line3ds.append(self.lines[line.line_3d_id])
+        for i in range(len(matches)):
+            line3d_ids.append(matches[i][0])
+            line_qry = segs_query[matches[i][1]]
+            p1 = np.array([line_qry[0], line_qry[1]], dtype=np.float64)
+            p2 = np.array([line_qry[2], line_qry[3]], dtype=np.float64)
+            line2ds.append(_base.Line2d(p1, p2))
+
+
         if not visualize:
-            return matches, None
+            return line3ds, line3d_ids, line2ds, None
 
         # draw the visualization and return the render image
+        # draw all the map lines to ref
+        for line in image_lines_ref:
+            color = (0, 0, 255)
+            p1 = (int(line.line_2d.start[0]), int(line.line_2d.start[1]))
+            p2 = (int(line.line_2d.end[0]), int(line.line_2d.end[1]))
+            cv2.line(image_ref, p1, p2, color, 2)
+
+        cv2.putText(image_ref, "#map lines :" + str(len(image_lines_ref)),
+                    (10, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (100, 255, 100), 1, cv2.LINE_AA)
+
         # draw matched lines to each image
         colors = matplotlib.cm.hsv(np.random.rand(len(matches))) * 255
         colors = colors.tolist()
@@ -116,17 +150,20 @@ class LineMap:
 
             p1 = (int(line_ref[0]), int(line_ref[1]))
             p2 = (int(line_ref[2]), int(line_ref[3]))
-            cv2.line(image_ref, p1, p2, colors[i], 2)
+            cv2.line(image_ref, p1, p2, colors[i], 3)
 
             p1 = (int(line_qry[0]), int(line_qry[1]))
             p2 = (int(line_qry[2]), int(line_qry[3]))
-            cv2.line(image_query, p1, p2, colors[i], 2)
+            cv2.line(image_query, p1, p2, colors[i], 3)
 
         # resize image query height to image ref
         new_width = image_query.shape[1] * image_ref.shape[0] / image_query.shape[0]
         image_query_resized = cv2.resize(image_query, (int(new_width), image_ref.shape[0]))
         image_show = cv2.hconcat([image_query_resized, image_ref])
-        return matches, image_show
+        cv2.putText(image_show, "#matches :" + str(len(matches)),
+                    (10, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (100, 255, 100), 1, cv2.LINE_AA)
+
+        return line3ds, line3d_ids, line2ds, image_show
 
 
     def draw_image_with_lines(self, camera_name, timestamp, thickness=2, endpoints=True):
