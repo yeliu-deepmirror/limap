@@ -15,7 +15,11 @@ def parse_args():
     arg_parser.add_argument('--mode', type=str, default="open3d", help="[pyvista, open3d]")
     arg_parser.add_argument('--use_robust_ranges', action='store_true', help="whether to use computed robust ranges")
     arg_parser.add_argument('--scale', type=float, default=1.0, help="scaling both the lines and the camera geometry")
-    arg_parser.add_argument('--cam_scale', type=float, default=1.0, help="scale of the camera geometry")
+    arg_parser.add_argument('--cam_scale', type=float, default=0.5, help="scale of the camera geometry")
+    arg_parser.add_argument('--downsample_ratio', type=float, default=1.0, help="downsample the lines")
+    arg_parser.add_argument('--min_length', type=float, default=1.0, help="min length to show")
+    arg_parser.add_argument('--max_length', type=float, default=100.0, help="min length to show")
+    arg_parser.add_argument('--min_track', type=int, default=5, help="min track of line to show")
     arg_parser.add_argument('--output_dir', type=str, default=None, help="if set, save the scaled lines in obj format")
     args = arg_parser.parse_args()
     return args
@@ -36,8 +40,30 @@ def vis_reconstruction(linetracks, imagecols, mode="open3d", n_visible_views=4, 
     VisTrack.report()
     VisTrack.vis_reconstruction(imagecols, n_visible_views=n_visible_views, ranges=ranges, scale=scale, cam_scale=cam_scale)
 
+
+def downsample_lines(lines, linetracks, args):
+    import random
+    result_lines = []
+    result_linetracks = []
+    for i in range(len(lines)):
+        length = lines[i].length()
+        if length < args.min_length or length > args.max_length:
+            continue
+        if linetracks[i].count_images() < args.min_track:
+            continue
+        if random.random() < args.downsample_ratio:
+            result_lines.append(lines[i])
+            result_linetracks.append(linetracks[i])
+    return result_lines, result_linetracks
+
+
 def main(args):
     lines, linetracks = limapio.read_lines_from_input(args.input_dir)
+    lines, linetracks = downsample_lines(lines, linetracks, args)
+
+    print("# lines:", len(lines))
+    print("# linetracks:", len(linetracks))
+
     ranges = None
     if args.metainfos is not None:
         _, ranges = limapio.read_txt_metainfos(args.metainfos)
@@ -58,4 +84,3 @@ def main(args):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-

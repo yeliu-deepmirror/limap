@@ -33,6 +33,10 @@ class SOLD2Detector(BaseDetector):
             descinfo[1] = descinfo[1][0]
         return descinfo
 
+    def detect_with_image(self, img):
+        segs, descriptor, heatmap, descinfo = self.detector.detect(img)
+        return segs
+
     def detect(self, camview):
         img = camview.read_image(set_gray=self.set_gray)
         segs, descriptor, heatmap, descinfo = self.detector.detect(img)
@@ -93,5 +97,3 @@ class SOLD2Matcher(BaseMatcher):
             return self.detector.match_segs_with_descinfo(descinfo1, descinfo2)
         else:
             return self.detector.match_segs_with_descinfo_topk(descinfo1, descinfo2, topk=self.topk)
-
-

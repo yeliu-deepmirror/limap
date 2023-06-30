@@ -38,6 +38,10 @@ class HAWPv3Detector(BaseDetector):
     def get_module_name(self):
         return "hawpv3"
 
+    def detect_with_image(self, img):
+        segs = self.detect_hawp(img, self.net)
+        return segs
+
     def detect(self, camview):
         img = camview.read_image(set_gray=True)
         segs = self.detect_hawp(img, self.net)

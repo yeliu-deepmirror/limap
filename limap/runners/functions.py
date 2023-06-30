@@ -105,6 +105,16 @@ def compute_sfminfos(cfg, imagecols, fname="metainfos.txt"):
         model = _psfm.SfmModel()
         model.ReadFromCOLMAP(colmap_output_path, "sparse", "images")
         neighbors, ranges = _psfm.compute_metainfos(cfg["sfm"], model, n_neighbors=cfg["n_neighbors"])
+
+        # filter neighbors not in imagecols
+        for image_id in neighbors.keys():
+            neighbors_tmp = neighbors[image_id]
+            neighbors_new = []
+            for nei_bor_id in neighbors_tmp:
+                if imagecols.exist_image(nei_bor_id):
+                    neighbors_new.append(nei_bor_id)
+            neighbors[image_id] = neighbors_new
+
         fname_save = os.path.join(cfg["dir_save"], fname)
         limapio.save_txt_metainfos(fname_save, neighbors, ranges)
     else:
@@ -183,4 +193,3 @@ def compute_exhausive_matches(cfg, descinfo_folder, image_ids):
         folder_load = os.path.join(cfg["dir_load"], basedir)
         matches_folder = matcher.get_matches_folder(folder_load)
     return matches_folder
-

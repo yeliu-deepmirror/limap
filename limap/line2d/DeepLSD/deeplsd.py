@@ -41,6 +41,20 @@ class DeepLSDDetector(BaseDetector):
     def get_module_name(self):
         return "deeplsd"
 
+    def detect_with_image(self, img):
+        img = torch.tensor(img[None, None], dtype=torch.float,
+                           device=self.device) / 255
+        with torch.no_grad():
+            lines = self.net({'image': img})['lines'][0]
+
+        # Use the line length as score
+        lines = np.concatenate([
+            lines.reshape(-1, 4),
+            np.linalg.norm(lines[:, 0] - lines[:, 1], axis=1, keepdims=True)],
+                               axis=1)
+        return lines
+
+
     def detect(self, camview):
         img = camview.read_image(set_gray=True)
         img = torch.tensor(img[None, None], dtype=torch.float,

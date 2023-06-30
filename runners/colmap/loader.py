@@ -22,7 +22,12 @@ def read_scene_colmap(cfg, session_name):
 
     camimages = {}
     # add images
+    stride = cfg["input_stride"]
+    cnt = 1
     for image_id in images_raw.keys():
+        cnt = cnt + 1
+        if cnt%stride != 0:
+            continue
         image = images_raw[image_id]
         pose = _base.CameraPose(qvec2rotmat(image.qvec), image.tvec)
         imname = os.path.join(cfg["data_dir"], session_name, cfg["sfm"]["colmap_output_path"], "images", image.name)

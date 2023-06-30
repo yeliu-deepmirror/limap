@@ -34,6 +34,10 @@ class TPLSDDetector(BaseDetector):
     def get_module_name(self):
         return "tp_lsd"
 
+    def detect_with_image(self, img):
+        segs = self.detect_tplsd(img, self.net)
+        return segs
+
     def detect(self, camview):
         img = camview.read_image(set_gray=False)
         segs = self.detect_tplsd(img, self.net)

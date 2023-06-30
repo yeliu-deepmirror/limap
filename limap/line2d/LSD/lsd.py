@@ -15,3 +15,6 @@ class LSDDetector(BaseDetector):
         segs = pytlsd.lsd(img)
         return segs
 
+    def detect_with_image(self, img):
+        segs = pytlsd.lsd(img)
+        return segs
