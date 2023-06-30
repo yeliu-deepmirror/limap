@@ -19,7 +19,9 @@ In this project, we provide interfaces for various geometric operations on 2D/3D
 
 ## Installation
 
-Install the dependencies as follows:
+<details>
+  <summary>Install the dependencies as follows.</summary>
+
 * CMake >= 3.17. And remember to update gcc 10.
 ```
 sudo apt-get install gcc-10 g++-10
@@ -50,10 +52,15 @@ To double check if the package is successfully installed:
 ```
 python -c "import limap"
 ```
+</details>
 
 ## Quickstart
 
 ### Example running colmap result
+
+<p align="center">
+<img src="./misc/media/limap_vlp_mapping.jpg">
+</p>
 
 ```
 SESSION_NAME=jm
@@ -109,11 +116,15 @@ python runners/colmap/localization.py --lines_dir outputs/${SESSION_NAME}
 
 **localization with RGBD image**
 <p align="center">
-<img src="./runners/colmap/rgbd_test/render_line_1.jpg">
+<img src="./misc/media/limap_vlp_loc.jpg">
 </p>
+
+* offline data test:
 ```
 python runners/colmap/localization_rgbd.py --test True --base_folder=runners/colmap/rgbd_test
 ```
+
+* make a websocket server:
 ```
 python runners/colmap/localization_rgbd.py --base_folder=outputs
 ```
