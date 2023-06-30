@@ -72,6 +72,7 @@ class LineMap:
         self.weight_path = "/home/viki/.limap/models"
         self.loaded = False
         self.model_loaded = False
+        self.model_label = ""
 
     def load_model(self):
         # create extractor and matchor
@@ -89,6 +90,7 @@ class LineMap:
         matcher_cfg['method'] = "gluestick"
         matcher_cfg['n_jobs'] = 1
         matcher_cfg['topk'] = 0  # process one-to-one match at localization stage
+        matcher_cfg['superglue'] = {'weights' : "outdoor"}
         self.matcher = limap.line2d.get_matcher(matcher_cfg, self.extractor, n_neighbors=20, weight_path=self.weight_path)
         print(self.TAG, "models load done.")
         self.model_loaded = True
@@ -241,12 +243,14 @@ class LineMap:
         return image
 
 
-    def detect_image(self, image_rgb, resize_ratio=0.5):
+    def detect_image(self, image_rgb, resize_ratio=0.8):
         image_gray = cv2.cvtColor(image_rgb, cv2.COLOR_BGR2GRAY)
         if resize_ratio != 1.0:
             dsize = (int(image_gray.shape[1] * resize_ratio), int(image_gray.shape[0] * resize_ratio))
             image_gray = cv2.resize(image_gray, dsize)
         segs = self.detector.detect_with_image(image_gray)
+        if self.detector.do_merge_lines:
+            segs = self.detector.merge_lines(segs)
         segs, _ = self.detector.take_longest_k(segs, max_num_2d_segs=self.detector.max_num_2d_segs)
         if resize_ratio != 1.0:
             resize_ratio_inv = 1.0 / resize_ratio
@@ -292,12 +296,16 @@ class LineMap:
 
         # filter ref segs and make lines
         segs_ref = []
+        shrinkage = 0.1
         for seg in segs_ref_raw:
-            length = (seg[2] - seg[0]) * (seg[2] - seg[0]) + (seg[1] - seg[3]) * (seg[1] - seg[3])
-            if length < 100:
+            dx = seg[2] - seg[0]
+            dy = seg[3] - seg[1]
+            if dx * dx + dy * dy < 100:
                 continue
-            ret_1, begin_world = ref_pixel_to_world_point([seg[0], seg[1]])
-            ret_2, end_world = ref_pixel_to_world_point([seg[2], seg[3]])
+
+            # shrink the line to get 3d points
+            ret_1, begin_world = ref_pixel_to_world_point([seg[0] + dx * shrinkage, seg[1] + dy * shrinkage])
+            ret_2, end_world = ref_pixel_to_world_point([seg[2] - dx * shrinkage, seg[3] - dy * shrinkage])
             if ret_1 and ret_2:
                 segs_ref.append(seg.tolist())
                 line3ds.append(_base.Line3d(begin_world, end_world))

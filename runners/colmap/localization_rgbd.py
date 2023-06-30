@@ -45,7 +45,11 @@ def process_localization():
     # read the request from file and run pnp
     points_file_path = os.path.join(base_folder, "request.txt")
     image_path = os.path.join(base_folder, "request.jpg")
-    line_image_path = os.path.join(base_folder, line_map.model_label + "_" + str(request_cnt) + ".jpg")
+    line_image_folder = os.path.join(base_folder, line_map.model_label)
+    line_image_path = os.path.join(line_image_folder, str(request_cnt) + ".jpg")
+    isExist = os.path.exists(line_image_folder)
+    if not isExist:
+        os.makedirs(line_image_folder)
     output_file_path = os.path.join(base_folder, "result.txt")
 
     point_3ds = []
@@ -97,19 +101,20 @@ def process_localization():
     # find line matches
     line3ds = []
     line2ds = []
+    line2ds_raw = []
     line3d_ids = []
     line2ds_ref = []
     depth_ref_path = os.path.join(base_folder, "ref_depth.bin")
     image_ref_path = os.path.join(base_folder, "ref_image.jpg")
     pose_ref_path = os.path.join(base_folder, "ref_pose.txt")
-    if not line_map.model_loaded:
+    if line_map.model_loaded:
+        image_query = cv2.imread(image_path)
+        depth_ref, image_ref, world_to_ref_rot, world_to_ref_trans_raw, K_ref = read_rgbd(depth_ref_path, image_ref_path, pose_ref_path)
+        world_to_ref_trans = world_to_ref_trans_raw + world_to_ref_rot.dot(offset)
+        line3ds, line3d_ids, line2ds_raw, line2ds_ref, image_ref = line_map.locate_rgbd(image_query, depth_ref, image_ref, world_to_ref_rot, world_to_ref_trans, K_ref, False)
+        print(" - # lines :", len(line2ds_raw))
+    else :
         print("Model Not Loaded")
-        return
-    image_query = cv2.imread(image_path)
-    depth_ref, image_ref, world_to_ref_rot, world_to_ref_trans_raw, K_ref = read_rgbd(depth_ref_path, image_ref_path, pose_ref_path)
-    world_to_ref_trans = world_to_ref_trans_raw + world_to_ref_rot.dot(offset)
-    line3ds, line3d_ids, line2ds_raw, line2ds_ref, image_ref = line_map.locate_rgbd(image_query, depth_ref, image_ref, world_to_ref_rot, world_to_ref_trans, K_ref, False)
-    print(" - # lines :", len(line2ds_raw))
 
     def world_pt_to_ref_pixel(pt):
         pt_cam = world_to_ref_rot.dot(pt) + world_to_ref_trans
@@ -151,7 +156,7 @@ def process_localization():
         pixel = transform_pixel(K.dot((1.0 / pt_cam[2]) * pt_cam))
         return pixel
 
-    save_image = True
+    save_image = True and line_map.model_loaded
     if save_image:
         # render the depth
         depth_int = 2 * np.expand_dims(depth_ref, axis=2).astype(np.uint8)
@@ -194,7 +199,7 @@ def process_localization():
         print_offset = print_offset + print_interval
         print_log("#line matches :" + str(len(line2ds_raw)))
         print_offset = print_offset + print_interval
-        print_log("#point matches :" + str(len(line2ds)))
+        print_log("#point matches :" + str(len(point_3ds)))
         print_offset = print_offset + print_interval
         print_log(f"  - num_iterations_total: {ransac_stats.num_iterations_total}")
         print_offset = print_offset + print_interval
@@ -271,6 +276,8 @@ def parse_args():
     args, unknown = arg_parser.parse_known_args()
     global base_folder
     base_folder = args.base_folder
+    print(args)
+    print(unknown)
     return args
 
 
