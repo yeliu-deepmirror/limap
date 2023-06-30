@@ -129,7 +129,7 @@ python runners/colmap/localization_rgbd.py --test True --base_folder=runners/col
 python runners/colmap/limap_loc.png --base_folder=outputs
 ```
 <p align="center">
-<img src="./misc/media/limap_vlp_mapping.jpg">
+<img src="./misc/media/limap_loc.png">
 </p>
 
 <details>
