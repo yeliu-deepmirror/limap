@@ -43,8 +43,8 @@ def read_rgbd(depth_path, image_path, pose_path):
     tmp = line.split(" ")
     K = np.array([[float(tmp[0]), 0, float(tmp[2])], [0, float(tmp[1]), float(tmp[3])], [0, 0, 1]]).astype(np.float64)
 
-    world_to_ref_trans = np.array([0, 0, 0], dtype=np.float64)
-    world_to_ref_rot = np.eye(3, dtype=np.float64)
+    world_to_ref_trans = np.array([0, 0, 0]).astype(np.float64)
+    world_to_ref_rot = np.eye(3).astype(np.float64)
     for i in range(3):
         line = pose_file.readline()
         tmp = line.split(" ")
@@ -248,7 +248,7 @@ class LineMap:
             resize_ratio_inv = 1.0 / resize_ratio
             for i in range(len(segs)):
                 seg_new = segs[i]
-                for j in range(4):
+                for j in range(5):
                     seg_new[j] = resize_ratio_inv * seg_new[j]
                 segs[i] = seg_new
 
@@ -257,7 +257,7 @@ class LineMap:
         return segs, image_gray
 
 
-    def locate_rgbd(self, image_query, depth_path, image_path, pose_path, offset, visualize):
+    def locate_rgbd(self, image_query, depth_ref, image_ref, world_to_ref_rot, world_to_ref_trans, K_ref, visualize):
         line3ds = []
         line3d_ids = []
         line2ds = []
@@ -266,9 +266,8 @@ class LineMap:
             print(self.TAG, "model not loaded.")
             return line3ds, line3d_ids, line2ds, line2ds_ref, None
 
-        depth_ref, image_ref, world_to_ref_rot, world_to_ref_trans, K_ref = read_rgbd(depth_path, image_path, pose_path)
         ref_to_world_rot = np.transpose(world_to_ref_rot)
-        ref_to_world_trans = -(ref_to_world_rot.dot(world_to_ref_trans)) - offset
+        ref_to_world_trans = -(ref_to_world_rot.dot(world_to_ref_trans))
         K_ref_inv = np.linalg.inv(K_ref)
 
         def ref_pixel_to_world_point(pixel):
@@ -314,14 +313,14 @@ class LineMap:
             p2 = np.array([line_ref[2], line_ref[3]], dtype=np.float64)
             line2ds_ref.append(_base.Line2d(p1, p2))
 
+        if not visualize:
+            return line3ds, line3d_ids, line2ds, line2ds_ref, image_ref
+
         # render the depth
         depth_int = 2 * np.expand_dims(depth_ref, axis=2).astype(np.uint8)
         depth_int[depth_int == 0] = 255
         depth_color = cv2.applyColorMap(depth_int, cv2.COLORMAP_JET)
         image_ref = (0.5 * depth_color + 0.5 * image_ref).astype(np.uint8)
-
-        if not visualize:
-            return line3ds, line3d_ids, line2ds, line2ds_ref, image_ref
 
         # show the matches
         colors = matplotlib.cm.hsv(np.random.rand(len(matches))) * 255

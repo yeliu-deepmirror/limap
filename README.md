@@ -102,12 +102,20 @@ Also, the combination  ``LSD detector + Endpoints NN matcher`` can be enabled wi
 
 ### Example of Hybrid Point-Line Localization
 
-localization with colmap result
+**localization with colmap result**
 ```
 python runners/colmap/localization.py --lines_dir outputs/${SESSION_NAME}
 ```
+
+**localization with RGBD image**
+<p align="center">
+<img src="./runners/colmap/rgbd_test/render_line_1.jpg">
+</p>
 ```
-python runners/colmap/localization_rgbd.py
+python runners/colmap/localization_rgbd.py --test True --base_folder=runners/colmap/rgbd_test
+```
+```
+python runners/colmap/localization_rgbd.py --base_folder=outputs
 ```
 
 <details>

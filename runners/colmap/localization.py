@@ -46,8 +46,8 @@ def message_received(client, server, message):
     request_cnt = request_cnt + 1
 
     # read the request from file and run pnp
-    points_file_path = "/home/viki/Development/Alpha/Data/request/tmp.txt"
-    image_path = "/home/viki/Development/Alpha/Data/request/tmp.jpg"
+    points_file_path = "/home/viki/Development/Alpha/Data/request/request.txt"
+    image_path = "/home/viki/Development/Alpha/Data/request/request.jpg"
     line_image_path = "/home/viki/Development/Alpha/Data/request/tmp_line_" + str(request_cnt) + ".jpg"
     output_file_path = "/home/viki/Development/Alpha/Data/request/result.txt"
 
