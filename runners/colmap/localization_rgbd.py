@@ -45,7 +45,7 @@ def process_localization():
     # read the request from file and run pnp
     points_file_path = os.path.join(base_folder, "request.txt")
     image_path = os.path.join(base_folder, "request.jpg")
-    line_image_path = os.path.join(base_folder, "render_line_" + str(request_cnt) + ".jpg")
+    line_image_path = os.path.join(base_folder, line_map.model_label + "_" + str(request_cnt) + ".jpg")
     output_file_path = os.path.join(base_folder, "result.txt")
 
     point_3ds = []
@@ -203,6 +203,15 @@ def process_localization():
         print_log(f"  - best_model_score: {ransac_stats.best_model_score}")
         print_offset = print_offset + print_interval
         print_log(f"  - inlier_ratios (Points, Lines): {ransac_stats.inlier_ratios}")
+
+        # compute camera pose
+        R_inv = final_pose.R().transpose()
+        inverse_pose = _base.CameraPose(R_inv, -(R_inv.dot(final_pose.tvec)))
+        position = inverse_pose.tvec.astype(np.float64) + offset
+        print_offset = print_offset + print_interval
+        print_log(f"camera pose rotation : {inverse_pose.qvec}")
+        print_offset = print_offset + print_interval
+        print_log("camera pose translation : {:.3f}, {:.3f}, {:.3f}".format(position[0], position[1], position[2]))
         cv2.imwrite(line_image_path, image_show)
 
     # save the result to file

@@ -77,18 +77,22 @@ class LineMap:
         # create extractor and matchor
         # deeplsd will have strange lines, LSD result is more stable
         detector_cfg = {}
+        # ["lsd", "sold2", "hawpv3", "tp_lsd", "deeplsd"]
         detector_cfg['method'] = "deeplsd"
         self.detector = limap.line2d.get_detector(detector_cfg, max_num_2d_segs=1000, do_merge_lines=False, visualize=False, weight_path=self.weight_path)
         extractor_cfg = {}
+        # ["sold2", "lbd", "l2d2", "linetr", "superpoint_endpoints", "wireframe"]
         extractor_cfg['method'] = "wireframe"
         self.extractor = limap.line2d.get_extractor(extractor_cfg, weight_path=self.weight_path)
         matcher_cfg = {}
+        # ["sold2", "lbd", "l2d2", "linetr", "nn_endpoints", "superglue_endpoints", "gluestick"]
         matcher_cfg['method'] = "gluestick"
         matcher_cfg['n_jobs'] = 1
         matcher_cfg['topk'] = 0  # process one-to-one match at localization stage
         self.matcher = limap.line2d.get_matcher(matcher_cfg, self.extractor, n_neighbors=20, weight_path=self.weight_path)
         print(self.TAG, "models load done.")
         self.model_loaded = True
+        self.model_label = detector_cfg['method'] + "_" + extractor_cfg['method'] + "_" + matcher_cfg['method']
 
     def load(self, lines_dir):
         print(self.TAG, "load lines from :", lines_dir)
@@ -289,7 +293,8 @@ class LineMap:
         # filter ref segs and make lines
         segs_ref = []
         for seg in segs_ref_raw:
-            if seg[4] < 20:
+            length = (seg[2] - seg[0]) * (seg[2] - seg[0]) + (seg[1] - seg[3]) * (seg[1] - seg[3])
+            if length < 100:
                 continue
             ret_1, begin_world = ref_pixel_to_world_point([seg[0], seg[1]])
             ret_2, end_world = ref_pixel_to_world_point([seg[2], seg[3]])
