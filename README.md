@@ -126,8 +126,11 @@ python runners/colmap/localization_rgbd.py --test True --base_folder=runners/col
 
 * make a websocket server:
 ```
-python runners/colmap/localization_rgbd.py --base_folder=outputs
+python runners/colmap/limap_loc.png --base_folder=outputs
 ```
+<p align="center">
+<img src="./misc/media/limap_vlp_mapping.jpg">
+</p>
 
 <details>
   <summary>Example of Localization.</summary>

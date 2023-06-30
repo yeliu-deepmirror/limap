@@ -243,7 +243,7 @@ class LineMap:
         return image
 
 
-    def detect_image(self, image_rgb, resize_ratio=0.8):
+    def detect_image(self, image_rgb, resize_ratio=0.5):
         image_gray = cv2.cvtColor(image_rgb, cv2.COLOR_BGR2GRAY)
         if resize_ratio != 1.0:
             dsize = (int(image_gray.shape[1] * resize_ratio), int(image_gray.shape[0] * resize_ratio))
